@@ -9,7 +9,7 @@
    (see /supabase/schema.sql), so this key can only do what those
    policies allow for whoever is currently signed in.
    ===================================================================== */
-const SUPABASE_URL = 'https://YOUR-PROJECT-REF.supabase.co';
-const SUPABASE_ANON_KEY = 'YOUR-ANON-PUBLIC-KEY';
+const SUPABASE_URL = 'https://mudlitchxcartnfidphl.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_HBWI2zlq9dHViUaQv4oPUA_4R1UD_Tx';
 
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
