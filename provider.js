@@ -36,7 +36,7 @@ function initDashboard() {
   function escapeHTML(s) { const d = document.createElement('div'); d.textContent = s ?? ''; return d.innerHTML; }
 
   // cached, refreshed by refreshAll()
-  let cache = { kids: [], bookings: [], reminders: [], payments: [], chats: [] };
+  let cache = { kids: [], bookings: [], reminders: [], payments: [], chats: [], packageRequests: [] };
 
   /* ---------- overview stats ---------- */
   function renderStats() {
@@ -99,6 +99,42 @@ function initDashboard() {
     tbody.querySelectorAll('.statusSelect').forEach(sel => {
       sel.addEventListener('change', async () => {
         const { error } = await LSData.updateBookingStatus(sel.dataset.id, sel.value);
+        if (error) { alert('Could not update status: ' + error.message); return; }
+        await refreshAll();
+      });
+    });
+  }
+
+  /* ---------- package requests ---------- */
+  function renderPackageRequests() {
+    const tbody = document.getElementById('packageRequestsBody');
+    const badge = document.getElementById('pkgReqBadge');
+    const newCount = cache.packageRequests.filter(r => r.status === 'new').length;
+    if (newCount > 0) { badge.textContent = newCount; badge.style.display = 'inline-flex'; }
+    else { badge.style.display = 'none'; }
+
+    if (!cache.packageRequests.length) { tbody.innerHTML = `<tr><td colspan="7">No package requests yet.</td></tr>`; return; }
+    tbody.innerHTML = cache.packageRequests.map(r => {
+      const addonsText = (r.addons && r.addons.length) ? r.addons.map(a => escapeHTML(a.name || a)).join(', ') : '—';
+      return `<tr>
+        <td><b>${escapeHTML(r.parentName)}</b></td>
+        <td>${escapeHTML(r.childName)}</td>
+        <td>${escapeHTML(r.planName)}</td>
+        <td>${addonsText}</td>
+        <td>${fmtUGX(r.totalUGX)} UGX <span style="color:var(--mist); font-size:11px;">(≈ ${fmtUSD(ugxToUsd(r.totalUGX))})</span></td>
+        <td>${safeDateStr(r.createdAt, {month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'})}</td>
+        <td>
+          <select data-id="${r.id}" class="pkgStatusSelect">
+            <option value="new" ${r.status==='new'?'selected':''}>New</option>
+            <option value="contacted" ${r.status==='contacted'?'selected':''}>Contacted</option>
+            <option value="handled" ${r.status==='handled'?'selected':''}>Handled</option>
+          </select>
+        </td>
+      </tr>`;
+    }).join('');
+    tbody.querySelectorAll('.pkgStatusSelect').forEach(sel => {
+      sel.addEventListener('change', async () => {
+        const { error } = await LSData.updatePackageRequestStatus(sel.dataset.id, sel.value);
         if (error) { alert('Could not update status: ' + error.message); return; }
         await refreshAll();
       });
@@ -214,15 +250,40 @@ function initDashboard() {
 
   /* ---------- init / refresh ---------- */
   async function refreshAll() {
-    const [kids, bookings, reminders, payments, chats] = await Promise.all([
-      LSData.getChildren(), LSData.getBookings(), LSData.getReminders(), LSData.getPayments(), LSData.getChats()
+    const [kids, bookings, reminders, payments, chats, packageRequests] = await Promise.all([
+      LSData.getChildren(), LSData.getBookings(), LSData.getReminders(), LSData.getPayments(), LSData.getChats(), LSData.getPackageRequests()
     ]);
-    cache = { kids, bookings, reminders, payments, chats };
-    renderStats(); renderRoster(); renderSchedule(); renderPaymentParentSelect(); renderPayments(); renderReminders(); renderThreads(); renderActiveThread();
+    cache = { kids, bookings, reminders, payments, chats, packageRequests };
+    renderStats(); renderRoster(); renderSchedule(); renderPackageRequests(); renderPaymentParentSelect(); renderPayments(); renderReminders(); renderThreads(); renderActiveThread();
   }
 
   refreshAll();
 
+  // Small debounce: if several changes land in the same second (e.g. a parent
+  // adds a few children back-to-back), this collapses them into one refresh
+  // instead of re-fetching everything multiple times in rapid succession.
+  let refreshDebounceTimer = null;
+  function debouncedRefreshAll() {
+    clearTimeout(refreshDebounceTimer);
+    refreshDebounceTimer = setTimeout(() => refreshAll(), 400);
+  }
+
   // live refresh when any new chat message arrives, from any thread
   LSData.subscribeToAllMessages(() => refreshChatsOnly());
+
+  // live refresh when a parent adds/removes a child, or books/changes a session —
+  // previously this only happened via subscribeToAllMessages (chat-only), so any
+  // other change made elsewhere sat invisible until the page was manually reloaded.
+  LSData.subscribeToBookings(() => debouncedRefreshAll());
+  LSData.subscribeToChildren(() => debouncedRefreshAll());
+
+  // live notification when a parent builds + sends a new package quote
+  LSData.subscribeToPackageRequests((row) => {
+    refreshAll();
+    const banner = document.createElement('div');
+    banner.className = 'pkg-toast';
+    banner.innerHTML = `📦 New package request from <b>${escapeHTML(row.parent_name)}</b> for <b>${escapeHTML(row.child_name)}</b> — ${escapeHTML(row.plan_name)}`;
+    document.body.appendChild(banner);
+    setTimeout(() => banner.remove(), 8000);
+  });
 }
