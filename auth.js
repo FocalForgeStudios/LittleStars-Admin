@@ -1,8 +1,8 @@
-/* =====================================================================
-   auth.js — Admin login gate
+﻿/* =====================================================================
+   auth.js â€” Admin login gate
 
-   Flow: show "checking session" → if no session, show login form →
-   on sign-in (or if a session already exists), check profiles.role →
+   Flow: show "checking session" â†’ if no session, show login form â†’
+   on sign-in (or if a session already exists), check profiles.role â†’
    'provider' shows the dashboard, anything else shows access-denied.
 
    provider.js waits for the 'lse:providerReady' event before it does
@@ -31,6 +31,7 @@ async function checkAccessAndRoute() {
   const profile = await LSData.getProfile();
   document.getElementById('providerEmailLabel').textContent = session.user.email;
   showOnly(dashboardRoot);
+  window.__lseProviderReady = true;
   document.dispatchEvent(new CustomEvent('lse:providerReady'));
 }
 
@@ -44,7 +45,7 @@ loginForm.addEventListener('submit', async (e) => {
   const password = document.getElementById('loginPassword').value;
   const submitBtn = loginForm.querySelector('button[type="submit"]');
   submitBtn.disabled = true;
-  submitBtn.textContent = 'Signing in…';
+  submitBtn.textContent = 'Signing inâ€¦';
   const { error } = await LSData.signInWithPassword(email, password);
   submitBtn.disabled = false;
   submitBtn.textContent = 'Sign In';
@@ -66,3 +67,4 @@ document.getElementById('deniedSignOutBtn')?.addEventListener('click', async () 
 });
 
 checkAccessAndRoute();
+
