@@ -142,13 +142,63 @@ const LSData = (() => {
     return () => supabase.removeChannel(channel);
   }
 
+  // ---------- live dashboard refresh: bookings & children ----------
+  // Without these, a parent adding a child or booking a session on the
+  // public site (in a different browser/tab entirely) would never appear
+  // on the provider dashboard until someone manually reloaded the page.
+  // `event: '*'` covers inserts, updates, and deletes — e.g. a parent
+  // removing a child, or a booking being added — not just new rows.
+  function subscribeToBookings(onChange) {
+    const channel = supabase.channel('admin-bookings-live')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings' },
+        payload => onChange(payload))
+      .subscribe();
+    return () => supabase.removeChannel(channel);
+  }
+
+  function subscribeToChildren(onChange) {
+    const channel = supabase.channel('admin-children-live')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'children' },
+        payload => onChange(payload))
+      .subscribe();
+    return () => supabase.removeChannel(channel);
+  }
+
+  // ---------- package requests (from "Build a Package" on the public site) ----------
+  function rowToPackageRequest(r) {
+    return {
+      id: r.id, parentName: r.parent_name, childName: r.child_name, planName: r.plan_name,
+      addons: r.addons, totalUGX: Number(r.total_ugx), status: r.status, createdAt: r.created_at
+    };
+  }
+
+  async function getPackageRequests() {
+    const { data, error } = await supabase.from('package_requests').select('*').order('created_at', { ascending: false });
+    if (error) { console.error('getPackageRequests failed:', error); return []; }
+    return data.map(rowToPackageRequest);
+  }
+
+  async function updatePackageRequestStatus(id, status) {
+    return supabase.from('package_requests').update({ status }).eq('id', id);
+  }
+
+  function subscribeToPackageRequests(onInsert) {
+    const channel = supabase.channel('admin-package-requests')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'package_requests' },
+        payload => onInsert(payload.new))
+      .subscribe();
+    return () => supabase.removeChannel(channel);
+  }
+
   return {
     getSession, getProfile, signInWithPassword, signOut, isProvider,
     getChildren, removeChild,
     getBookings, updateBookingStatus,
     getPayments, addPayment,
     getReminders, addReminder, toggleReminder,
-    getChats, pushMessage, subscribeToAllMessages
+    getChats, pushMessage, subscribeToAllMessages,
+    subscribeToBookings, subscribeToChildren,
+    getPackageRequests, updatePackageRequestStatus, subscribeToPackageRequests
   };
 })();
 
