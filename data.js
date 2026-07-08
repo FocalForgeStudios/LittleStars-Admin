@@ -115,11 +115,24 @@ const LSData = (() => {
 
   // ---------- chat (all threads) ----------
   async function getChats() {
+    // Join with profiles so we can filter out any thread whose parent_id
+    // belongs to a provider account. Providers sign into the admin dashboard;
+    // they are never clients sending messages through the public chat widget.
+    // Guest threads (parent_id = null) are always included since they have
+    // no account role to check.
     const { data: threads, error } = await supabase
-      .from('chat_threads').select('*').order('created_at');
+      .from('chat_threads')
+      .select('*, profiles(role)')
+      .order('created_at');
     if (error) { console.error('getChats failed:', error); return []; }
+
+    // Keep only guest threads (no parent_id) and threads belonging to parents.
+    const parentThreads = (threads || []).filter(t =>
+      !t.parent_id || (t.profiles && t.profiles.role === 'parent')
+    );
+
     const result = [];
-    for (const t of threads) {
+    for (const t of parentThreads) {
       const { data: messages } = await supabase
         .from('chat_messages').select('*').eq('thread_id', t.id).order('created_at');
       result.push({
