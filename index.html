@@ -1,138 +1,141 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Provider Dashboard — Little Stars Enrichment</title>
+<title>Provider Dashboard - Little Stars Enrichment</title>
+<meta name="description" content="Little Stars Enrichment provider dashboard for roster, bookings, payments, reminders, and parent chat.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,500&family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,500&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Nunito:wght@400;500;600;700;800;900&family=Patrick+Hand&display=swap" rel="stylesheet">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="styles.css?v=2">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body class="provider-body">
 
-<!-- ============ LOADING (shown while we check session) ============ -->
 <div id="authLoading" class="admin-login-screen">
-  <div class="auth-loading">Checking your session…</div>
+  <div class="auth-shell auth-card-mini">
+    <span class="logo-mark">LS</span>
+    <div class="auth-loading">Checking your session...</div>
+  </div>
 </div>
 
-<!-- ============ LOGIN GATE ============ -->
 <div id="loginScreen" class="admin-login-screen" style="display:none;">
+  <div class="login-art" aria-hidden="true"><span></span><span></span><span></span></div>
   <div class="auth-shell">
-    <h3>Provider Login</h3>
+    <a href="#" class="brand-lockup"><span class="logo-mark">LS</span><span>Little Stars<br><small>Provider Studio</small></span></a>
+    <h1>Provider Login</h1>
     <p class="auth-sub">Staff access only. Sign in with your provider account.</p>
     <div class="auth-error" id="loginError"></div>
     <form id="loginForm">
-      <input type="email" id="loginEmail" placeholder="Email" required autocomplete="username">
-      <input type="password" id="loginPassword" placeholder="Password" required autocomplete="current-password">
-      <button type="submit" class="btn btn-primary" style="width:100%;">Sign In</button>
+      <label>Email</label>
+      <input type="email" id="loginEmail" placeholder="provider@example.com" required autocomplete="username">
+      <label>Password</label>
+      <input type="password" id="loginPassword" placeholder="Enter password" required autocomplete="current-password">
+      <button type="submit" class="btn btn-primary">Sign In</button>
     </form>
   </div>
 </div>
 
-<!-- ============ ACCESS DENIED (signed in, but not a provider) ============ -->
-<div id="deniedScreen" style="display:none;">
+<div id="deniedScreen" class="admin-login-screen" style="display:none;">
   <div class="access-denied">
-    <h3>This account isn't a provider account</h3>
+    <span class="logo-mark">LS</span>
+    <h1>This account is not a provider account</h1>
     <p>You're signed in, but this dashboard is restricted to Little Stars Enrichment staff. If you believe this is a mistake, contact an administrator to have your role updated.</p>
-    <button class="btn btn-ghost" id="deniedSignOutBtn" style="margin-top:18px;">Sign out</button>
+    <button class="btn btn-ghost" id="deniedSignOutBtn">Sign out</button>
   </div>
 </div>
 
-<!-- ============ DASHBOARD (only rendered once provider role is confirmed) ============ -->
 <div id="dashboardRoot" style="display:none;">
-
-<header class="prov-header">
-  <div class="wrap">
-    <span class="logo"><span class="star">✦</span> Little Stars — Provider Dashboard</span>
-    <div class="signed-in-bar">
-      <span id="providerEmailLabel"></span>
-      <button id="signOutBtn">Sign out</button>
-    </div>
-  </div>
-</header>
-
-<div class="wrap" style="padding-top:36px; padding-bottom:80px;">
-
-  <div class="prov-grid">
-    <div class="stat-card"><div class="num" id="statChildren">0</div><div class="lbl">Children registered</div></div>
-    <div class="stat-card"><div class="num" id="statUpcoming">0</div><div class="lbl">Upcoming sessions</div></div>
-    <div class="stat-card"><div class="num" id="statReminders">0</div><div class="lbl">Open reminders</div></div>
-    <div class="stat-card"><div class="num" id="statRevenue">0</div><div class="lbl">Recorded payments</div></div>
-  </div>
-
-  <div class="prov-tabs">
-    <button class="prov-tab active" data-target="tabRoster">👧 Children &amp; Packages</button>
-    <button class="prov-tab" data-target="tabSchedule">🗓️ Schedule</button>
-    <button class="prov-tab" data-target="tabPayments">💳 Payments</button>
-    <button class="prov-tab" data-target="tabReminders">⏰ Reminders</button>
-    <button class="prov-tab" data-target="tabChat">💬 Client Chat</button>
-  </div>
-
-  <!-- ============ ROSTER ============ -->
-  <section class="prov-section active" id="tabRoster">
-    <div class="prov-table-wrap">
-      <table class="prov-table">
-        <thead><tr><th>Child</th><th>Age</th><th>Notes</th><th>Parent</th><th>Packages &amp; sessions</th><th>Actions</th></tr></thead>
-        <tbody id="rosterBody"></tbody>
-      </table>
-    </div>
-  </section>
-
-  <!-- ============ SCHEDULE ============ -->
-  <section class="prov-section" id="tabSchedule">
-    <div class="prov-table-wrap">
-      <table class="prov-table">
-        <thead><tr><th>Child</th><th>Package</th><th>When</th><th>Mode</th><th>Status</th></tr></thead>
-        <tbody id="scheduleBody"></tbody>
-      </table>
-    </div>
-  </section>
-
-  <!-- ============ PAYMENTS ============ -->
-  <section class="prov-section" id="tabPayments">
-    <div class="prov-note-input">
-      <select id="paymentParentSelect" style="flex:1; padding:12px 14px; border-radius:10px; border:1.5px solid rgba(142,95,214,0.22);"></select>
-      <input type="text" id="newPaymentDesc" placeholder="Description, e.g. June weekly plan">
-      <input type="number" id="newPaymentAmount" placeholder="Amount (UGX)" style="max-width:160px;">
-      <button class="btn btn-primary btn-sm" id="addPaymentBtn">Record</button>
-    </div>
-    <div class="prov-table-wrap">
-      <table class="prov-table">
-        <thead><tr><th>Date</th><th>Parent</th><th>Description</th><th>Amount</th></tr></thead>
-        <tbody id="paymentsBody"></tbody>
-      </table>
-    </div>
-  </section>
-
-  <!-- ============ REMINDERS ============ -->
-  <section class="prov-section" id="tabReminders">
-    <div class="prov-note-input">
-      <input type="text" id="newReminderText" placeholder="New reminder, e.g. Call parent to confirm headcount">
-      <input type="datetime-local" id="newReminderWhen" style="max-width:220px;">
-      <button class="btn btn-primary btn-sm" id="addReminderBtn">Add</button>
-    </div>
-    <div id="reminderList"></div>
-  </section>
-
-  <!-- ============ CLIENT CHAT ============ -->
-  <section class="prov-section" id="tabChat">
-    <div class="prov-chat-list">
-      <div class="chat-threads" id="threadList"></div>
-      <div class="prov-chat-panel">
-        <div class="chat-head"><div><div class="ti" id="provChatName">Select a conversation</div></div></div>
-        <div class="chat-body" id="provChatBody"></div>
-        <div class="chat-input-row">
-          <input type="text" id="provChatInput" placeholder="Reply to client…">
-          <button id="provChatSend" aria-label="Send">➤</button>
-        </div>
+  <header class="prov-header">
+    <div class="top-ribbon">
+      <div class="wrap ribbon-row">
+        <span>Little Stars Provider Studio</span>
+        <span>Roster, Sessions, Payments, Reminders, Chat</span>
+        <span>8.00am-4.00pm</span>
       </div>
     </div>
-  </section>
+    <div class="wrap nav-panel">
+      <a href="#" class="brand-lockup"><span class="logo-mark">LS</span><span>Little Stars<br><small>Provider Dashboard</small></span></a>
+      <div class="signed-in-bar">
+        <span id="providerEmailLabel"></span>
+        <button id="signOutBtn">Sign out</button>
+      </div>
+    </div>
+  </header>
 
+  <main class="wrap dashboard-shell">
+    <section class="dashboard-hero">
+      <div>
+        <div class="eyebrow">Operations Desk</div>
+        <h1>Keep every child, parent, and session beautifully organized.</h1>
+        <p>Manage the Little Stars roster, upcoming online sessions, payment records, reminders, and parent conversations from one calm dashboard.</p>
+      </div>
+      <div class="hero-badge"><span>Live</span><strong>Provider View</strong></div>
+    </section>
+
+    <section class="prov-grid" aria-label="Dashboard summary">
+      <div class="stat-card"><span class="stat-dot"></span><div class="num" id="statChildren">0</div><div class="lbl">Children registered</div></div>
+      <div class="stat-card"><span class="stat-dot blue"></span><div class="num" id="statUpcoming">0</div><div class="lbl">Upcoming sessions</div></div>
+      <div class="stat-card"><span class="stat-dot purple"></span><div class="num" id="statReminders">0</div><div class="lbl">Open reminders</div></div>
+      <div class="stat-card wide"><span class="stat-dot"></span><div class="num" id="statRevenue">0</div><div class="lbl">Recorded payments</div></div>
+    </section>
+
+    <section class="workspace-card">
+      <div class="prov-tabs" role="tablist" aria-label="Provider dashboard sections">
+        <button class="prov-tab active" data-target="tabRoster">Children & Packages</button>
+        <button class="prov-tab" data-target="tabSchedule">Schedule</button>
+        <button class="prov-tab" data-target="tabPayments">Payments</button>
+        <button class="prov-tab" data-target="tabReminders">Reminders</button>
+        <button class="prov-tab" data-target="tabChat">Client Chat</button>
+      </div>
+
+      <section class="prov-section active" id="tabRoster">
+        <div class="section-toolbar"><div><h2>Children & Packages</h2><p>View parent records, notes, and scheduled sessions.</p></div></div>
+        <div class="prov-table-wrap"><table class="prov-table"><thead><tr><th>Child</th><th>Age</th><th>Notes</th><th>Parent</th><th>Packages & sessions</th><th>Actions</th></tr></thead><tbody id="rosterBody"></tbody></table></div>
+      </section>
+
+      <section class="prov-section" id="tabSchedule">
+        <div class="section-toolbar"><div><h2>Schedule</h2><p>Track online sessions and update status as they move.</p></div></div>
+        <div class="prov-table-wrap"><table class="prov-table"><thead><tr><th>Child</th><th>Package</th><th>When</th><th>Mode</th><th>Status</th></tr></thead><tbody id="scheduleBody"></tbody></table></div>
+      </section>
+
+      <section class="prov-section" id="tabPayments">
+        <div class="section-toolbar"><div><h2>Payments</h2><p>Record parent payments and keep the ledger tidy.</p></div></div>
+        <div class="prov-note-input payment-inputs">
+          <select id="paymentParentSelect"></select>
+          <input type="text" id="newPaymentDesc" placeholder="Description, e.g. June weekly plan">
+          <input type="number" id="newPaymentAmount" placeholder="Amount (UGX)">
+          <button class="btn btn-primary btn-sm" id="addPaymentBtn">Record</button>
+        </div>
+        <div class="prov-table-wrap"><table class="prov-table"><thead><tr><th>Date</th><th>Parent</th><th>Description</th><th>Amount</th></tr></thead><tbody id="paymentsBody"></tbody></table></div>
+      </section>
+
+      <section class="prov-section" id="tabReminders">
+        <div class="section-toolbar"><div><h2>Reminders</h2><p>Keep follow-ups visible before they become urgent.</p></div></div>
+        <div class="prov-note-input">
+          <input type="text" id="newReminderText" placeholder="New reminder, e.g. Call parent to confirm headcount">
+          <input type="datetime-local" id="newReminderWhen">
+          <button class="btn btn-primary btn-sm" id="addReminderBtn">Add</button>
+        </div>
+        <div id="reminderList"></div>
+      </section>
+
+      <section class="prov-section" id="tabChat">
+        <div class="section-toolbar"><div><h2>Client Chat</h2><p>Reply to parent conversations without leaving the dashboard.</p></div></div>
+        <div class="prov-chat-list">
+          <div class="chat-threads" id="threadList"></div>
+          <div class="prov-chat-panel">
+            <div class="chat-head"><div><div class="ti" id="provChatName">Select a conversation</div><div class="sub">Parent messages</div></div></div>
+            <div class="chat-body" id="provChatBody"></div>
+            <div class="chat-input-row"><input type="text" id="provChatInput" placeholder="Reply to client..."><button id="provChatSend" aria-label="Send">Send</button></div>
+          </div>
+        </div>
+      </section>
+    </section>
+  </main>
 </div>
-</div><!-- /dashboardRoot -->
 
 <script src="config.js"></script>
 <script src="data.js"></script>
